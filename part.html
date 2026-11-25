@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Рабочий чертёж детали вертепного ящика.">
+<title>Деталь — Вертепный ящик</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a class="brand" href="index.html">Вертепный ящик</a>
+  <a class="l" href="index.html">Обзор</a>
+  <a class="l" href="parts.html" aria-current="page">Детали</a>
+  <a class="l" href="assembly.html">Сборка</a>
+</div></nav>
+<div class="wrap">
+<header class="page" id="head">
+  <div class="crumbs"><a href="parts.html">Детали</a> / <span id="crumb"></span></div>
+  <h1 id="title">Деталь</h1>
+  <p class="lede" id="where"></p>
+  <div class="facts" id="facts"></div>
+  <p class="stage-note" id="stage" hidden></p>
+</header>
+<section>
+  <figure class="sheet">
+    <div class="sheet-head"><div class="t"><span class="no" id="sheetNo"></span><h3 id="view"></h3></div></div>
+    <div class="sheet-body"><svg class="dw" id="sv-part" role="img" aria-label="Чертёж детали"></svg></div>
+    <figcaption id="cap">Размеры в сантиметрах. Координаты отсчитываются от базового угла (кружок): по горизонтали — подписи под деталью, по вертикали — слева. Здесь только заготовка: что выпилить и просверлить. Пунктир — отверстия, которые не сквозные. Куда деталь ставится и что к ней крепится — на схеме в шаге сборки.</figcaption>
+  </figure>
+  <div id="tables" class="two"></div>
+</section>
+<section>
+  <div class="two">
+    <div class="card"><h3>Как сделать</h3><ol class="plain" id="make"></ol><p class="muted" id="stepLink"></p></div>
+    <div class="card"><h3>Где стоит</h3><div class="viewer small" id="viewer"></div></div>
+  </div>
+  <div class="pn" id="pn"></div>
+</section>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/draw.js"></script>
+<script src="assets/viewer.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function () {
+'use strict';
+const {$} = SITE, {fmt, esc, MAT, ORDER} = V;
+const M = V.model(180), types = V.partTypes(M), byId = new Map(types.flatMap(t => [[t.id, t]].concat((t.aliases || []).map(a => [a, t]))));
+let id = new URLSearchParams(location.search).get('id');
+const OLD = {bottom:'panel', ceiling:'panel', top:'panel', 'throne-base':'hatch-half', 'hatch-lid':'hatch-half'};   // старые адреса карточек
+if (OLD[id]) id = OLD[id];
+if (!byId.has(id)) id = ORDER[0];
+const t = byId.get(id), idx = types.indexOf(t), own = [t.id].concat(t.aliases || []);
+id = t.id;
+document.title = t.name + ' — Вертепный ящик';
+$('#crumb').textContent = t.name; $('#title').textContent = t.name; $('#where').textContent = t.where;
+$('#view').textContent = t.view; $('#sheetNo').textContent = 'Д' + (idx + 1);
+const facts = [`${t.qty} шт`, t.size];
+if (t.mat) facts.push(MAT[t.mat].l);
+if (t.note) facts.push(t.note);
+const tier = V.STAGE.has(id) ? ['сцена: можно менять', V.STAGE_NOTE] : V.DECOR.has(id) ? ['декор, не основа', V.DECOR_NOTE] : null;
+if (tier) facts.push(tier[0]);
+$('#facts').innerHTML = facts.map(f => `<span class="chip">${esc(f)}</span>`).join('');
+if (tier) { $('#stage').textContent = tier[1]; $('#stage').hidden = false; }
+SITE.banner($('#head'));
+const res = VD.part($('#sv-part'), id, false);
+$('#tables').innerHTML = (res.tables || []).map(SITE.tableHTML).join('');
+$('#make').innerHTML = t.make.map(s => `<li>${esc(s)}</li>`).join('');
+const si = V.STEPS.findIndex(s => s.types.some(x => own.includes(x)));
+if (si >= 0) $('#stepLink').innerHTML = `Куда ставится: <a href="assembly.html#step-${si + 1}">шаг ${si + 1} сборки — ${esc(V.STEPS[si].t)}</a>`;
+const ids = t.parts.map(p => p.id);
+const view = VV.create($('#viewer'), {mode:'part', highlight: id === 'puppet' ? ['__none'] : ids});
+if (view) {
+  view.R.orbit.theta = -.7; view.R.orbit.phi = .32;
+  if (id === 'hatch-half') { view.setLid(true); view.R.orbit.theta = -2.3; view.R.orbit.phi = .45; view.frame(['floor1', 'throneS']); }
+  else view.frame(ids.length ? ids.concat(['sideL','sideR']) : ['floor1','floor2']);
+}
+const prev = types[idx - 1], next = types[idx + 1];
+$('#pn').innerHTML = (prev ? `<a href="part.html?id=${encodeURIComponent(prev.id)}">← ${esc(prev.name)}</a>` : '<span></span>') +
+  (next ? `<a href="part.html?id=${encodeURIComponent(next.id)}">${esc(next.name)} →</a>` : '');
+})();
+</script>
+</body>
+</html>
