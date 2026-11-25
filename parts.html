@@ -43,7 +43,7 @@
 const {$} = SITE, {fmt, esc, MAT} = V;
 SITE.banner($('#head'));
 const M = V.model(180), types = V.partTypes(M), cd = V.cutData(M), byId = new Map(types.flatMap(t => [[t.id, t]].concat((t.aliases || []).map(a => [a, t]))));
-$('#stats').innerHTML = [[String(cd.count), 'деталей из дерева'], [String(cd.types.length), 'разных'], [`≈ ${Math.round(cd.kg)} кг`, 'корпус с фронтоном']]
+$('#stats').innerHTML = [[String(cd.count), 'деталей из дерева'], [String(cd.types.length), 'разных'], [`${Math.round(cd.kg)} кг`, 'корпус с фронтоном']]
   .map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
 $('#groups').innerHTML = V.GROUPS.map(([g, ids, note, tag]) => `<section><div class="group-h"><h2>${esc(g)}</h2>${tag ? `<span class="gtag">${esc(tag)}</span>` : ''}</div>${note ? `<p class="gnote">${esc(note)}</p>` : ''}<div class="cards">${ids.filter(id => byId.has(id) && byId.get(id).id === id).map(id => {
   const t = byId.get(id);

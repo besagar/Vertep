@@ -164,8 +164,7 @@ function renderStatic() {
   $('#stats').innerHTML = [
     [`${fmt(M.Wout)} × ${fmt(M.Dc + V.T.td)} × ${fmt(M.Hc)}`, 'корпус Ш × Г × В, со створками'],
     [fmt(L.roof), 'общая высота с подставкой и фронтоном'],
-    [`+${fmt(L.f1)} / +${fmt(L.f2)}`, 'полы сцен от пола комнаты'],
-    [`≈ ${Math.round(cd.kg)} кг`, 'корпус с фронтоном'],
+    [`${Math.round(cd.kg)} кг`, 'корпус с фронтоном'],
     [String(cd.count), 'деталей']
   ].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
   const CH = V.checks(M), nok = CH.filter(c => c.c).length;
