@@ -173,7 +173,7 @@ function partOps(S, M, Vw, filter) {
     if (p.face && p.face.n === Vw.axis && !p.rot) {
       const [w, h] = faceSize(p), ol = p.face.outline || [[0,0],[w,0],[w,h],[0,h]];
       poly = ol.map(t => Vw.proj(faceW(p, t[0], t[1])));
-      holes = p.face.prims.map(pr => pr.t === 'circle' ? {t:'circle', c:Vw.proj(faceW(p, pr.c[0], pr.c[1])), r:pr.r}
+      holes = p.face.prims.filter(pr => pr.role !== 'mortise').map(pr => pr.t === 'circle' ? {t:'circle', c:Vw.proj(faceW(p, pr.c[0], pr.c[1])), r:pr.r}
         : {t:pr.t, pts:pr.pts.map(t => Vw.proj(faceW(p, t[0], t[1]))), w:pr.w, pocket:pr.role === 'pocket'});
     } else poly = hull(vs.map(Vw.proj));
     ops.push({d, f:() => {
@@ -253,7 +253,8 @@ const PRIM_TEXT = {
   arch:(p, n) => { const e = ext(p.pts); return 'арка-кулиса ' + fmt(e.maxU[0] - e.minU[0]) + ' × ' + fmt(e.maxV[1] - e.minV[1]) + ', верх полукругом' + (n > 1 ? ', ' + n + ' шт' : ''); },
   eye:(p, n) => 'глазки Ø' + fmt(p.r*2) + (n > 1 ? ', ' + n + ' шт' : ''), 
   star:() => 'звезда насквозь, вершины в таблице',
-  mortise:(p, n) => { const e = ext(p.pts); return 'гнёзда под шипы потолка ' + fmt(e.maxU[0] - e.minU[0]) + ' × ' + fmt(e.maxV[1] - e.minV[1]) + ' насквозь' + (n > 1 ? ', ' + n + ' шт' : '') + '; у дна и крышки — вырезы с края'; },
+  mortise:(p, n) => { const e = ext(p.pts); return 'гнёзда под шипы потолка ' + fmt(e.maxU[0] - e.minU[0]) + ' × ' + fmt(e.maxV[1] - e.minV[1]) + ' насквозь' + (n > 1 ? ', ' + n + ' шт' : '') + '; у дна и крышки — вырезы с края, спереди — под планки'; },
+  fmortise:(p, n) => { const e = ext(p.pts); return 'окна под шипы потолка ' + fmt(e.maxU[0] - e.minU[0]) + ' × ' + fmt(e.maxV[1] - e.minV[1]) + ' насквозь' + (n > 1 ? ', ' + n + ' шт' : ''); },
   gmortise:(p, n) => { const e = ext(p.pts); return 'прорези под шипы фронтона ' + fmt(e.maxU[0] - e.minU[0]) + ' × ' + fmt(e.maxV[1] - e.minV[1]) + ' насквозь' + (n > 1 ? ', ' + n + ' шт' : ''); },
   pocket:(p, n) => 'канавка под пол глубиной ' + fmt(p.depth*10) + ' мм, с внутренней стороны' + (n > 1 ? ', ' + n + ' шт' : '')
 };
@@ -263,29 +264,30 @@ const shapeOrds = c => { const xs = [], ys = [];
   c.prims.forEach(p => { if (p.t === 'circle') { xs.push(X(p.c)); ys.push(Y(p.c)); } else if (p.t === 'poly') { const e = ext(p.pts); xs.push(X(e.minU), X(e.maxU)); ys.push(Y(e.minV), Y(e.maxV)); } });
   return {xs, ys}; };
 /* выноска на шипы детали: центр первого шипа из списка соединений модели */
-const tabNote = (text, kind) => c => { const js = c.M.joints.filter(j => j.id === c.p.id && j.kind === kind); if (!js.length) return [];
+const tabNote = (text, kind, g) => c => { const js = c.M.joints.filter(j => j.id === c.p.id && j.kind === kind && (!g || j.g === g)); if (!js.length) return [];
   const S = V.boardShape(c.p), b = js[0].b, q = S.from3([(b.x0 + b.x1)/2, (b.y0 + b.y1)/2, (b.z0 + b.z1)/2]), a = c.fc(q);
   const e = S.from3([b.x0, b.y0, b.z0]), f = S.from3([b.x1, b.y1, b.z1]), w = Math.abs(f[0] - e[0]), h = Math.abs(f[1] - e[1]);
   return [{x:a[0], y:a[1], text:text(fmt(Math.max(w, h)), fmt(Math.min(w, h)), js.length)}]; };
 const neighbourExtremes = c => { const xs = [], ys = [];
   c.nbs.forEach(n => { const e = ext(n.poly); if (e.minU[0] > .05) xs.push(X(e.minU)); if (e.maxU[0] < c.w - .05) xs.push(X(e.maxU)); if (e.minV[1] > .05) ys.push(Y(e.minV)); if (e.maxV[1] < c.h - .05) ys.push(Y(e.maxV)); });
   c.feats.forEach(ft => { xs.push(X(ft.c)); ys.push(Y(ft.c)); }); return {xs, ys}; };
-const FACE = p => p.face.outline;
+const PANEL = c => tabNote((a, b, n) => `шипы ${a} × ${b} насквозь через боковины, ${n} шт`, 'tab', 'ps')(c).concat(tabNote((a, b, n) => `шипы ${a} × ${b} вперёд, через фасадную планку, ${n} шт`, 'tab', 'pf')(c));
+const FACE = p => p.face.outline, FASC = tabNote((a, b, n) => `шипы ${a} × ${b} на концах, в вырезы боковин`, 'tab', 'fs');
 const SPEC = {
   side:{rep:'sideL', view:'inner', outline:FACE, ords:shapeOrds, asm:c => { const xs = [], ys = [];
     ['bottom','floor1','ceil','floor2','top'].forEach(id => { const n = c.nb(id); if (n) { const e = ext(n.poly); ys.push(Y(e.minV), Y(e.maxV)); } });
     ['floor1','backL'].forEach(id => { const n = c.nb(id); if (n) { const e = ext(n.poly); xs.push(X(e.minU)); } });
     return {xs, ys}; }},
-  panel:{rep:'bottom', view:'top', outline:FACE, ords:shapeOrds, notes:tabNote((a, b, n) => `шипы ${a} × ${b} насквозь через боковины, ${n} шт`, 'tab')},
-  top:{rep:'top', view:'top', outline:FACE, ords:shapeOrds, notes:tabNote((a, b, n) => `шипы ${a} × ${b} насквозь через боковины, ${n} шт`, 'tab')},
+  panel:{rep:'bottom', view:'top', outline:FACE, ords:shapeOrds, notes:PANEL},
+  top:{rep:'top', view:'top', outline:FACE, ords:shapeOrds, notes:PANEL},
   'floor-lower':{rep:'floor1', view:'top', outline:FACE, ords:c => floorOrds(c), tables:c => floorTables(c, c.M.FL), notes:tabNote(() => `край пола заходит в канавку боковины на ${fmt(T.gr*10)} мм`, 'tongue')},
   'floor-upper':{rep:'floor2', view:'top', outline:FACE, ords:c => floorOrds(c), tables:c => floorTables(c, c.M.FU), notes:tabNote(() => `край пола заходит в канавку боковины на ${fmt(T.gr*10)} мм`, 'tongue')},
   'hatch-half':{rep:'hatchLid', view:'top', ords:neighbourExtremes},
   'back-lower':{rep:'backL', view:'front', ords:c => backOrds(c)},
   'back-upper':{rep:'backU', view:'front', ords:c => backOrds(c)},
-  apron:{rep:'apron', view:'front', ords:neighbourExtremes},
-  frieze:{rep:'frieze', view:'front', ords:neighbourExtremes},
-  'top-fascia':{rep:'topFascia', view:'front', ords:neighbourExtremes},
+  apron:{rep:'apron', view:'front', outline:FACE, ords:shapeOrds, notes:FASC},
+  frieze:{rep:'frieze', view:'front', outline:FACE, ords:shapeOrds, notes:FASC},
+  'top-fascia':{rep:'topFascia', view:'front', outline:FACE, ords:shapeOrds, notes:FASC},
   door:{rep:'doorL', view:'front', door:0, asm:c => { const xs = [], ys = [];
     c.nbs.filter(n => n.q.name === 'Петля створки' && n.front).forEach(n => { const e = ext(n.poly); ys.push({y:(e.minV[1] + e.maxV[1])/2, from:e.minU[0]}); });
     c.feats.forEach(ft => { xs.push(X(ft.c)); ys.push(Y(ft.c)); }); return {xs, ys}; }},
