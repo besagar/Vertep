@@ -50,79 +50,37 @@ function create(host, opts) {
     if (p.cat.startsWith('light')) return new THREE.MeshStandardMaterial({color:c, emissive:c, emissiveIntensity:1});
     return new THREE.MeshStandardMaterial({color:c, roughness:.84, metalness:0});
   }
-  function panelObj(p) {
-    const b = p.b, f = p.face, s = 8, [w, h] = faceSize(p), t = f.n === 'z' ? b.z1 - b.z0 : b.y1 - b.y0;
-    const cv = document.createElement('canvas'); cv.width = Math.ceil(w*s); cv.height = Math.ceil(h*s);
-    const g = cv.getContext('2d'), X = u => u*s, Y = v => (h - v)*s;
-    g.fillStyle = '#fff';
-    if (f.outline) { g.beginPath(); f.outline.forEach((q, i) => i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))); g.closePath(); g.fill(); } else g.fillRect(0, 0, cv.width, cv.height);
-    g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000'; g.strokeStyle = '#000'; g.lineCap = 'round'; g.lineJoin = 'round';
-    f.prims.forEach(pr => {
-      g.beginPath();
-      if (pr.t === 'circle') { g.arc(X(pr.c[0]), Y(pr.c[1]), pr.r*s, 0, Math.PI*2); g.fill(); }
-      else if (pr.t === 'poly') { pr.pts.forEach((q, i) => i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))); g.closePath(); g.fill(); }
-      else { g.lineWidth = pr.w*s; pr.pts.forEach((q, i) => i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))); g.stroke(); }
-    });
-    const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
-    const mat = new THREE.MeshStandardMaterial({color:COL[p.cat], map:tex, alphaTest:.5, side:THREE.DoubleSide, roughness:.84});
-    const dm = new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking, map:tex, alphaTest:.5});
-    const grp = new THREE.Group(), geo = new THREE.PlaneGeometry(w, h);
-    const mk = () => { const m = new THREE.Mesh(geo, mat); m.customDepthMaterial = dm; m.castShadow = m.receiveShadow = true; grp.add(m); return m; };
-    const emat = new THREE.MeshStandardMaterial({color:COL[p.cat], roughness:.84});
-    const edge = (sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), emat); m.position.set(x, y, z); grp.add(m); };
-    // торцы рисуем только там, где по краю есть дерево (выходы щелей и низ арок остаются открытыми)
-    const img = g.getImageData(0, 0, cv.width, cv.height).data, solid = (px, py) => img[(Math.min(cv.height - 1, Math.max(0, py))*cv.width + Math.min(cv.width - 1, Math.max(0, px)))*4 + 3] > 128;
-    const runs = (len, at) => { const o = []; let st = null; for (let q = 0; q <= len + 1e-9; q += .2) { const on = q < len && at(q); if (on && st == null) st = q; if (!on && st != null) { o.push([st, Math.min(q, len)]); st = null; } } return o; };
-    const alongU = v => u => solid(Math.floor(u*s + .1*s), Math.floor(Y(v) + (v > 0 ? 1 : -2))), alongV = u => v => solid(Math.floor(X(u) + (u > 0 ? -2 : 1)), Math.floor(Y(v + .1)));
-    if (f.n === 'z') {
-      const cx = b.x0 + w/2, cy = b.y0 + h/2; [b.z0, b.z1].forEach(z => { const m = mk(); m.position.set(cx, cy, -z); });
-      if (!f.outline) { const cz = -(b.z0 + b.z1)/2;
-        [[0, b.y0], [h, b.y1]].forEach(([v, y]) => runs(w, alongU(v)).forEach(([a0, a1]) => edge(a1 - a0, .05, t, b.x0 + (a0 + a1)/2, y, cz)));
-        [[0, b.x0], [w, b.x1]].forEach(([u, x]) => runs(h, alongV(u)).forEach(([a0, a1]) => edge(.05, a1 - a0, t, x, b.y0 + (a0 + a1)/2, cz))); }
-    } else {
-      const cx = b.x0 + w/2, cz = -(b.z0 + h/2); [b.y0, b.y1].forEach(y => { const m = mk(); m.rotation.x = -Math.PI/2; m.position.set(cx, y, cz); });
-      const cy = (b.y0 + b.y1)/2;
-      [[0, b.z0], [h, b.z1]].forEach(([v, z]) => runs(w, alongU(v)).forEach(([a0, a1]) => edge(a1 - a0, t, .05, b.x0 + (a0 + a1)/2, cy, -z)));
-      [[0, b.x0], [w, b.x1]].forEach(([u, x]) => runs(h, alongV(u)).forEach(([a0, a1]) => edge(.05, t, a1 - a0, x, cy, -(b.z0 + (a0 + a1)/2))));
+  /* доска: настоящий контур заготовки (шипы, вырезы с края, щели) с дырами, вытянутый на толщину;
+     канавка — отдельным слоем на её глубину, где контур с канавкой */
+  function boardObj(p) {
+    const S = V.boardShape(p), mat = matFor(p), grp = new THREE.Group();
+    mat.side = THREE.DoubleSide; mat.flatShading = true;   // нормаль грани — по экрану: без пятен на пластях
+    const path = (pa, pts) => { pts.forEach((q, i) => i ? pa.lineTo(q[0], q[1]) : pa.moveTo(q[0], q[1])); pa.closePath(); return pa; };
+    const shape = (outer, holes) => { const sh = path(new THREE.Shape(), outer);
+      holes.forEach(h => sh.holes.push(path(new THREE.Path(), h)));
+      S.circles.forEach(c => { const pa = new THREE.Path(); pa.absarc(c.c[0], c.c[1], c.r, 0, Math.PI*2, true); sh.holes.push(pa); });
+      return sh; };
+    const e0 = S.to3(0, 0, 0), ax = [[1,0,0],[0,1,0],[0,0,1]].map(a => { const q = S.to3(a[0], a[1], a[2]); return [q[0] - e0[0], q[1] - e0[1], -(q[2] - e0[2])]; });
+    const flip = V.dot(ax[0], V.cross(ax[1], ax[2])) < 0;
+    const layer = (sh, d0, d1) => {
+      const g = new THREE.ExtrudeGeometry(sh, {depth:d1 - d0, bevelEnabled:false, curveSegments:12}), pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) { const q = S.to3(pos.getX(i), pos.getY(i), d0 + pos.getZ(i)); pos.setXYZ(i, q[0], q[1], -q[2]); }
+      if (flip) for (let i = 0; i + 2 < pos.count; i += 3) { const x = pos.getX(i+1), y = pos.getY(i+1), z = pos.getZ(i+1); pos.setXYZ(i+1, pos.getX(i+2), pos.getY(i+2), pos.getZ(i+2)); pos.setXYZ(i+2, x, y, z); }
+      g.deleteAttribute('normal'); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; grp.add(m); };
+    if (!S.pockets.length) layer(shape(S.outer, S.holes), 0, S.t);
+    else {
+      const dp = S.pockets[0].depth, top = S.pockets[0].at === 'max', holes2 = S.holes.slice(); let o2 = S.outer;
+      S.pockets.forEach(k => { const s2 = V.splice(o2, k.pts); if (s2) o2 = s2; else holes2.push(k.pts); });
+      if (top) { layer(shape(S.outer, S.holes), 0, S.t - dp); layer(shape(o2, holes2), S.t - dp, S.t); }
+      else { layer(shape(o2, holes2), 0, dp); layer(shape(S.outer, S.holes), dp, S.t); }
     }
-    // стенки вырезов на всю толщину доски: щели, проёмы, арки, глазки
-    const d0 = f.n === 'z' ? b.z0 : b.y0, d1 = f.n === 'z' ? b.z1 : b.y1;
-    const P3 = f.n === 'z' ? (u, v, d) => [b.x0 + u, b.y0 + v, -d] : (u, v, d) => [b.x0 + u, d, -(b.z0 + v)];
-    const onB = q => q[0] < .02 || q[0] > w - .02 || q[1] < .02 || q[1] > h - .02, pos = [];
-    const wall = (a, c) => {
-      if (onB(a) && onB(c) && (Math.abs(a[0] - c[0]) < .02 || Math.abs(a[1] - c[1]) < .02)) return;   // по краю доски стенку уже дал торец
-      const A0 = P3(a[0], a[1], d0), C0 = P3(c[0], c[1], d0), C1 = P3(c[0], c[1], d1), A1 = P3(a[0], a[1], d1);
-      pos.push(...A0, ...C0, ...C1, ...A0, ...C1, ...A1); };
-    const loop = pts => pts.forEach((q, i) => wall(q, pts[(i + 1) % pts.length])), line = pts => pts.forEach((q, i) => { if (i) wall(pts[i - 1], q); });
-    f.prims.forEach(pr => {
-      if (pr.t === 'circle') { const c = []; for (let i = 0; i < 24; i++) { const a = i/24*2*Math.PI; c.push([pr.c[0] + pr.r*Math.cos(a), pr.c[1] + pr.r*Math.sin(a)]); } loop(c); }
-      else if (pr.t === 'poly') loop(pr.pts);
-      else {
-        const r = pr.w/2, Q = pr.pts, n = Q.length, Lf = [], Rt = [];
-        const dir = i => { const a = Q[Math.max(0, i - 1)], c = Q[Math.min(n - 1, i + 1)], dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx/l, dy/l]; };
-        Q.forEach((q, i) => { const [dx, dy] = dir(i); Lf.push([q[0] - dy*r, q[1] + dx*r]); Rt.push([q[0] + dy*r, q[1] - dx*r]); });
-        line(Lf); line(Rt);
-        const cap = (q, [dx, dy]) => { const c = []; for (let k = 0; k <= 12; k++) { const ph = k/12*Math.PI; c.push([q[0] + r*(-dy*Math.cos(ph) + dx*Math.sin(ph)), q[1] + r*(dx*Math.cos(ph) + dy*Math.sin(ph))]); } line(c); };
-        if (!onB(Q[n - 1])) cap(Q[n - 1], dir(n - 1));
-        if (!onB(Q[0])) { const [dx, dy] = dir(0); cap(Q[0], [-dx, -dy]); }
-      }
-    });
-    const wmat = new THREE.MeshStandardMaterial({color:COL[p.cat], roughness:.84, side:THREE.DoubleSide});
-    if (pos.length) { const gm = new THREE.BufferGeometry(); gm.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gm.computeVertexNormals();
-      const wm = new THREE.Mesh(gm, wmat); wm.castShadow = wm.receiveShadow = true; grp.add(wm); }
-    grp.userData.canvas = cv; grp.userData.mats = [mat, emat, wmat];
+    grp.userData.shape = S; grp.userData.mats = [mat];
     return grp;
   }
   function objFor(p) {
     let obj;
-    if (p.prism && p.face && p.face.outline) {
-      // фигурная доска (фронтон): настоящая толщина, вырезы — дырами в контуре
-      const sh = new THREE.Shape(), b = p.b; p.prism.poly.forEach((q, i) => i ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])); sh.closePath();
-      p.face.prims.filter(pr => pr.t === 'poly').forEach(pr => { const h = new THREE.Path(); pr.pts.forEach((q, i) => i ? h.lineTo(b.x0 + q[0], b.y0 + q[1]) : h.moveTo(b.x0 + q[0], b.y0 + q[1])); h.closePath(); sh.holes.push(h); });
-      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, {depth:p.prism.z1 - p.prism.z0, bevelEnabled:false, curveSegments:4}), matFor(p));
-      m.position.z = -p.prism.z1; m.castShadow = m.receiveShadow = true; obj = m; obj.userData.mats = [m.material];
-    }
-    else if (p.face) obj = panelObj(p);
+    if (p.face) obj = boardObj(p);
     else if (p.prism) {
       const sh = new THREE.Shape(); p.prism.poly.forEach((q, i) => i ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])); sh.closePath();
       const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, {depth:p.prism.z1 - p.prism.z0, bevelEnabled:false}), matFor(p));
@@ -197,7 +155,7 @@ function create(host, opts) {
   }
   function paint(o, mode) {
     const p = o.userData.part, mats = o.userData.mats || [];
-    const xr = st.xray && ['carcass','door','fascia','roof'].includes(p.cat) && !p.face;
+    const xr = st.xray && ['carcass','door','fascia','roof'].includes(p.cat);
     mats.forEach(m => {
       const b = m.userData.base || {color:m.color.getHex(), emissive:0};
       m.color.setHex(b.color); if (m.emissive) m.emissive.setHex(b.emissive);
@@ -283,9 +241,11 @@ function create(host, opts) {
     let dhz = 0; if (dl) dl.traverse(o => { if (o.geometry) { dhz = o.geometry.boundingBox.max.y - o.geometry.boundingBox.min.y; } });
     add('Высота створки', M.dh, dhz);
     R.groups.roof.position.y = ry; root.updateMatrixWorld(true);
-    const f2 = R.objs.get('floor2'), cv = f2 && f2.userData.canvas, s = 8, h = P.D + T.tp;
+    // щель верхнего пола: в контуре, из которого построена 3D-доска, на оси щели — дыра, в 2,5 см поперёк — дерево
+    const f2 = R.objs.get('floor2'), S = f2 && f2.userData.shape;
     let slot = null;
-    if (cv) { const g = cv.getContext('2d'), q = V.along(M.FU.info.hook, .5), q2 = V.along(M.FU.info.hook, .52), tl = Math.hypot(q2[0] - q[0], q2[1] - q[1]) || 1, nx = -(q2[1] - q[1])/tl, nz = (q2[0] - q[0])/tl, x = q[0], z = q[1], a = g.getImageData(Math.round(x*s), Math.round((h - z)*s), 1, 1).data[3], b = g.getImageData(Math.round((x + nx*2.5)*s), Math.round((h - (z + nz*2.5))*s), 1, 1).data[3]; slot = {ok:a < 20 && b > 200, x, z}; }
+    if (S) { const q = V.along(M.FU.info.hook, .5), q2 = V.along(M.FU.info.hook, .52), tl = Math.hypot(q2[0] - q[0], q2[1] - q[1]) || 1, nx = -(q2[1] - q[1])/tl, nz = (q2[0] - q[0])/tl;
+      const a = V.solidAt(S, q[0], q[1], S.t/2), b = V.solidAt(S, q[0] + nx*2.5, q[1] + nz*2.5, S.t/2); slot = {ok:!a && b, x:q[0], z:q[1]}; }
     return {rows, slot};
   }
   // управление камерой

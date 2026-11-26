@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Рождественский вертеп: 3D-модель, общие чертежи, рабочие чертежи деталей и порядок сборки.">
+<title>Вертепный ящик</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a class="brand" href="index.html">Вертепный ящик</a>
+  <a class="l" href="index.html" aria-current="page">Обзор</a>
+  <a class="l" href="parts.html">Детали</a>
+  <a class="l" href="assembly.html">Сборка</a>
+</div></nav>
+<div class="wrap">
+<header class="page">
+  <div class="eyebrow">Рождественский вертеп · визуальная лаба · чертёж v0.1</div>
+  <div class="titlebar"><h1>Вертепный ящик</h1><div id="variant"></div></div>
+  <div class="stats" id="stats"></div>
+  <div class="chips"><a class="chip" href="parts.html">Детали и раскрой →</a><a class="chip" href="assembly.html">Порядок сборки →</a></div>
+  <div class="dls" id="dls"></div>
+</header>
+
+<section>
+  <div class="sec-head">
+    <h2>Модель</h2>
+    <p>Вращать мышью или пальцем, приближать колесом или щипком. Нажми на деталь, чтобы открыть её чертёж. Кнопки «Фасад» и «Разрез» ставят камеру ровно в проекцию листов ниже.</p>
+  </div>
+  <div class="model">
+    <div class="viewer" id="viewer">
+      <div class="vbar">
+        <button type="button" data-view="free" aria-pressed="true">Свободно</button>
+        <button type="button" data-view="front" aria-pressed="false">Фасад</button>
+        <button type="button" data-view="section" aria-pressed="false">Разрез</button>
+        <button type="button" data-view="planU" aria-pressed="false">План верх</button>
+        <button type="button" data-view="planL" aria-pressed="false">План низ</button>
+        <button type="button" data-view="rear" aria-pressed="false">Сзади</button>
+      </div>
+      <div class="vinfo"><span class="pick" id="pick" hidden></span><span id="hint">нажми на деталь</span></div>
+    </div>
+    <aside class="controls" aria-label="Размеры и отображение">
+      <div class="ctl-group"><h3>Размеры, см</h3><div id="ranges" style="display:grid;gap:10px"></div><p class="limit" id="limit" role="status" hidden></p></div>
+      <div class="ctl-group"><h3>Створки</h3>
+        <div class="rng"><label for="doorA">угол открытия</label><output id="doorAo" for="doorA">180°</output><input type="range" id="doorA" min="0" max="180" step="1" value="180"></div></div>
+      <div class="ctl-group"><h3>Показать</h3>
+        <div class="chips">
+          <label class="chk"><input type="checkbox" id="o-puppets" checked>куклы</label>
+          <label class="chk"><input type="checkbox" id="o-hands" checked>кулаки</label>
+          <label class="chk"><input type="checkbox" id="o-people" checked>кукловоды</label>
+          <label class="chk"><input type="checkbox" id="o-lights" checked>подсветка</label>
+          <label class="chk"><input type="checkbox" id="o-stand" checked>подставка</label>
+          <label class="chk"><input type="checkbox" id="o-xray">рентген</label>
+          <label class="chk"><input type="checkbox" id="o-cut">снять правую стенку</label>
+          <label class="chk"><input type="checkbox" id="o-explode">снять фронтон</label>
+        </div></div>
+      <div class="chips">
+        <button type="button" id="anim" aria-pressed="false">Провести пастуха по щели</button>
+        <button type="button" id="lid" aria-pressed="false">Открыть люк</button>
+        <button type="button" id="throne" aria-pressed="false">Провалить трон</button>
+        <button type="button" id="reset">Вернуть v0.1</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Общие виды</h2>
+    <p>Слева цепочка высот от пола комнаты с буквами зон, справа отметки уровней. Чертёж каждой детали — на её странице в разделе <a href="parts.html">Детали</a>.</p>
+  </div>
+  <div class="sheets">
+    <figure class="sheet">
+      <div class="sheet-head"><div class="t"><span class="no">Л1</span><h3>Фасад</h3></div>
+        <button type="button" id="frontDoors" aria-pressed="true">створки открыты</button></div>
+      <div class="sheet-body"><svg class="dw" id="sv-front" role="img" aria-label="Фасад вертепного ящика"></svg></div>
+      <figcaption><span>Вид от зрителя. Открытые створки становятся «крыльями».</span>
+        <span class="zl"><span><b>А</b> — верхняя сцена</span><span><b>Б</b> — пояс, рука верхнего кукловода</span><span><b>В</b> — нижняя сцена</span><span><b>Г</b> — фартук, рука нижнего</span></span></figcaption>
+    </figure>
+    <figure class="sheet">
+      <div class="sheet-head"><div class="t"><span class="no">Л2</span><h3>Разрез сбоку</h3></div></div>
+      <div class="sheet-body"><svg class="dw" id="sv-section" role="img" aria-label="Разрез вертепного ящика"></svg></div>
+      <figcaption><span>Правая боковина снята. Справа от разреза — чистые высоты зон и отметки глазков в задниках.</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="tight">
+  <details class="spoiler">
+  <summary>Показать сверку и проверки <span id="chk-sum"></span></summary>
+  <p class="muted">Левая таблица снимает размеры прямо с 3D-сцены и сравнивает их с листами. Справа проверки конструкции. И то и другое пересчитывается при каждом изменении размеров.</p>
+  <div class="two">
+    <div class="card"><h3>3D и чертёж</h3><div class="tbl-wrap"><table id="sverka"><thead><tr><th>Что</th><th class="n">Лист</th><th class="n">3D</th><th></th></tr></thead><tbody></tbody></table></div></div>
+    <div class="card"><h3>Конструкция</h3><ul class="checks" id="checklist"></ul></div>
+  </div>
+  </details>
+</section>
+
+<section id="tiers">
+  <div class="sec-head">
+    <h2>Что основа, а что можно менять</h2>
+  </div>
+  <div class="card">
+    <p class="muted">Драматургия ещё не решена, поэтому ящик делится на две части. Сначала собираем корпус. Сцену можно пропилить позже или переделать, когда ящик уже стоит.</p>
+    <div class="two">
+      <div>
+        <div class="eyebrow">Основа</div>
+        <ul class="plain">
+          <li>Габариты ящика, высоты этажей и зон рук.</li>
+          <li>Боковины, дно, потолок, крышка, опорные бруски: на саморезах и клею.</li>
+          <li>Фасадные планки, створки на петлях.</li>
+          <li>Габариты полов и задников: под них размечены бруски.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="eyebrow">Сцена и декор, можно менять</div>
+        <ul class="plain">
+          <li>Щели в полах. Сейчас они как на чертежах «Фомы», но это исходный вариант.</li>
+          <li>Общий проём трона и люка, крышка люка, площадка трона и то, чем её держать.</li>
+          <li>Арки-кулисы и глазки в задниках: они идут за выходами щелей и за кукловодами.</li>
+          <li>Фронтон — декор, дело десятое: форма и звезда только вариант, его можно и не ставить. Основа — только брусок, которым он прикручен к крышке.</li>
+          <li>Задники можно делать не из фанеры, а из плотной бумаги, картона или ткани и прибить строительным степлером к задним торцам боковин, пола и потолка. Это легче, арки и глазки режутся ножом, а переделать задник — дело пяти минут. Тогда пол сзади ничем не прижат: он просто лежит на брусках.</li>
+          <li>Полы — простые доски: лежат на переднем ребре и брусках без клея и упираются в фасад. Задники стоят враспор. Чтобы поменять сцену, вынимаем задник, вытягиваем пол назад и пилим новый по тем же габаритам.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="sec-head">
+    <h2>Откуда это</h2>
+    <p>Устройство взято из двух источников и наших встреч. Размеры прикинуты по чертежам «Фомы», подогнаны под наши решения и проверены моделью.</p>
+  </div>
+  <div class="card">
+    <ul class="plain">
+      <li><a href="https://booth.ru/vertep/vert_yasch.shtml" target="_blank" rel="noopener">«Вертепный ящик и куклы»</a>, театр «Бродячий вертеп» — общее устройство: две сцены, под каждой зона для руки кукловода, глазки в задниках, люк у трона, щели не замыкаются в кольцо.</li>
+      <li><a href="https://foma.ru/kak-sozdat-vertepnoe-dejstvo-na-rozhdestvo-hristovo-doma-i-v-hrame.html" target="_blank" rel="noopener">«Как создать вертепное действо»</a>, журнал «Фома» — единственный источник с готовыми чертежами. По ним прикидывали габариты сцен и полов, толщину фанеры и ширину пропила щели; оттуда же форма щелей и звезда-фонарик за вырезом во фронтоне.</li>
+      <li>Встречи визуальной лабы — два этажа, тёплый и холодный; ящик с дверками; кукловоды не прячутся, а стоят в тени.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div>Вертепный ящик · чертёж v0.1</div>
+</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/draw.js"></script>
+<script src="assets/viewer.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function () {
+'use strict';
+const {$} = SITE, {P, DEF, RANGES, fmt, esc} = V;
+SITE.variant($('#variant')); SITE.downloads($('#dls'));
+let frontOpen = true, view = null;
+function renderStatic() {
+  const M = V.model(180), L = M.L, cd = V.cutData(M);
+  VD.front($('#sv-front'), frontOpen); VD.section($('#sv-section'));
+  $('#stats').innerHTML = [
+    [`${fmt(M.Wout)} × ${fmt(M.Dc + V.T.td)} × ${fmt(M.Hc)}`, 'корпус Ш × Г × В, со створками'],
+    [fmt(L.roof), 'общая высота с подставкой и фронтоном'],
+    [`${Math.round(cd.kg)} кг`, 'корпус с фронтоном'],
+    [String(cd.count), 'деталей']
+  ].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+  const CH = V.checks(M), nok = CH.filter(c => c.c).length;
+  $('#chk-sum').textContent = `· проверок ${nok} из ${CH.length}` + (nok === CH.length ? ', всё да' : ', есть «нет»');
+  $('#checklist').innerHTML = CH.map(c => `<li><span class="st ${c.c ? 'ok' : 'bad'}">${c.c ? 'да' : 'нет'}</span><span>${esc(c.t)}</span></li>`).join('');
+}
+function renderSverka() {
+  const tb = $('#sverka tbody');
+  if (!view) { tb.innerHTML = '<tr><td colspan="4">3D не загрузилось, сверять не с чем.</td></tr>'; return; }
+  const m = view.measure();
+  tb.innerHTML = m.rows.map(r => { const ok = fmt(r.a) === fmt(r.b); return `<tr><td>${r.t}</td><td class="n">${fmt(r.a)}</td><td class="n">${fmt(r.b)}</td><td><span class="st ${ok ? 'ok' : 'bad'}">${ok ? 'совпадает' : 'расходится'}</span></td></tr>`; }).join('') +
+    (() => { const v = VD.verifyAll(); return `<tr><td>Листы: ${v.dims} размеров и ${v.callouts} выносок на ${v.sheets} листах привязаны к нарисованной геометрии, подписи совпадают с измеренным` + (v.problems.length ? ` — расхождения: ${esc(v.problems.slice(0, 3).join('; '))}` : '') + `</td><td class="n">все листы</td><td class="n">${v.problems.length ? v.problems.length + ' ошибок' : '0 ошибок'}</td><td><span class="st ${v.problems.length ? 'bad' : 'ok'}">${v.problems.length ? 'расходится' : 'совпадает'}</span></td></tr>`; })() +
+    (m.slot ? `<tr><td>Щель верхнего пола: в 3D-текстуре дыра в точке x ${fmt(m.slot.x)}, z ${fmt(m.slot.z)}, а в 2,5 см поперёк щели — пол</td><td class="n">чертёж</td><td class="n">пиксели</td><td><span class="st ${m.slot.ok ? 'ok' : 'bad'}">${m.slot.ok ? 'совпадает' : 'расходится'}</span></td></tr>` : '');
+}
+function renderAll() { renderStatic(); if (view) { view.rebuild(); } renderSverka(); }
+// размеры
+$('#ranges').innerHTML = RANGES.map(([k, l, mn, mx, st]) => `<div class="rng"><label for="r-${k}">${l}</label><output id="o-${k}" for="r-${k}">${fmt(P[k])}</output><input type="range" id="r-${k}" min="${mn}" max="${mx}" step="${st}" value="${P[k]}"></div>`).join('');
+let raf = 0;
+/* Слайдеры с упором: значение, при котором хоть одна проверка не проходит, не принимается.
+   Ищем ближайшее допустимое значение между прежним и желаемым и останавливаемся на нём. */
+const failing = () => V.checks(V.model(180)).filter(c => !c.c);
+const showLimit = t => { const el = $('#limit'); el.textContent = t || ''; el.hidden = !t; };
+if (failing().length) { V.resetP(); RANGES.forEach(([k]) => { $('#r-' + k).value = P[k]; $('#o-' + k).textContent = fmt(P[k]); }); showLimit('Сохранённые размеры не проходили проверки, вернул v0.1.'); }
+RANGES.forEach(([k, label, mn, mx, st]) => $('#r-' + k).addEventListener('input', e => {
+  const prev = P[k], want = +e.target.value, snap = v => +(Math.round((v - mn)/st)*st + mn).toFixed(2);
+  P[k] = want; const bad = failing();
+  if (bad.length) {
+    let lo = prev, hi = want;
+    while (Math.abs(hi - lo) > st*1.01) { const mid = snap((lo + hi)/2); if (mid === lo || mid === hi) break; P[k] = mid; if (failing().length) hi = mid; else lo = mid; }
+    P[k] = hi; const why = (failing()[0] || bad[0]).t;
+    P[k] = lo; e.target.value = lo;
+    showLimit(`Упор: ${label} — дальше ${fmt(lo)} нельзя. При ${fmt(hi)}: ${why}`);
+  } else showLimit('');
+  if (P[k] === prev) return;
+  $('#o-' + k).textContent = fmt(P[k]); V.saveP(); cancelAnimationFrame(raf); raf = requestAnimationFrame(renderAll);
+}));
+$('#reset').addEventListener('click', () => { V.resetP(); showLimit(''); RANGES.forEach(([k]) => { $('#r-' + k).value = P[k]; $('#o-' + k).textContent = fmt(P[k]); }); renderAll(); });
+$('#frontDoors').addEventListener('click', e => { frontOpen = !frontOpen; e.currentTarget.setAttribute('aria-pressed', String(frontOpen)); e.currentTarget.textContent = frontOpen ? 'створки открыты' : 'створки закрыты'; VD.front($('#sv-front'), frontOpen); });
+// 3D
+view = VV.create($('#viewer'), {mode:'full', onPick: p => {
+  const el = $('#pick');
+  if (!p) { el.hidden = true; $('#hint').hidden = false; return; }
+  let txt = esc(p.name);
+  if (p.b) { const b = V.wbox(p); txt += ` — ${fmt(b.x1 - b.x0)} × ${fmt(b.y1 - b.y0)} × ${fmt(b.z1 - b.z0)}` + (p.mat ? ` · ${esc(V.MAT[p.mat].l)}` : ''); }
+  if (p.type) txt += ` · <a href="part.html?id=${encodeURIComponent(p.type)}">чертёж детали →</a>`;
+  el.innerHTML = txt; el.hidden = false; $('#hint').hidden = true;
+}});
+if (view) {
+  $('#doorA').addEventListener('input', e => { $('#doorAo').textContent = e.target.value + '°'; view.setDoor(+e.target.value); });
+  [['o-puppets','puppets'],['o-hands','hands'],['o-people','people'],['o-lights','lights'],['o-stand','stand'],['o-xray','xray'],['o-cut','cut'],['o-explode','explode']].forEach(([id, k]) =>
+    $('#' + id).addEventListener('change', e => { view.st[k] = e.target.checked; view.apply(); }));
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-view]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    view.preset(b.dataset.view); $('#o-cut').checked = view.st.cut; }));
+  $('#throne').addEventListener('click', e => { const on = !view.st.throne; e.currentTarget.setAttribute('aria-pressed', String(on)); view.setThrone(on); });
+  $('#lid').addEventListener('click', e => { const on = !view.st.lid; e.currentTarget.setAttribute('aria-pressed', String(on)); view.setLid(on); });
+  $('#anim').addEventListener('click', e => { const on = !view.st.anim; e.currentTarget.setAttribute('aria-pressed', String(on)); if (on) view.st.anim = true; else view.stopAnim(); });
+}
+renderStatic(); renderSverka();
+})();
+</script>
+</body>
+</html>

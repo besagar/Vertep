@@ -117,6 +117,7 @@ figcaption{padding:8px 12px 12px;font-size:13px;color:var(--ink-2);border-top:1p
 .dw .onfloor{fill:var(--panel);fill-opacity:.6;stroke:var(--ink-2);stroke-width:.9}
 .dw .onfloor.c-back-warm{fill:var(--d-warm);fill-opacity:1} .dw .onfloor.c-back-cold{fill:var(--d-cold);fill-opacity:1}
 .dw .void{fill:var(--void);stroke:none}
+.dw .pocket{fill:var(--d-bar);stroke:var(--ink-2);stroke-width:.8;stroke-dasharray:4 2;vector-effect:non-scaling-stroke}
 .dw .slot{stroke:var(--void);fill:none;stroke-linecap:round;stroke-linejoin:round}
 .dw .slot-cl{stroke:var(--d-screen);fill:none;stroke-width:.8;stroke-dasharray:6 2 1 2;vector-effect:non-scaling-stroke}
 .dw .cl-pt{fill:var(--d-screen)}
@@ -199,3 +200,17 @@ footer{padding-block:32px 0;color:var(--ink-3);font-size:13px;display:grid;gap:6
 .spoiler>summary span{font-family:var(--f-mono);font-weight:400;font-size:13px;color:var(--ink-3)}
 .spoiler[open]>summary{margin-bottom:4px}
 section.tight{padding-top:8px}
+/* выбор конструкции и архивы */
+.titlebar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px}
+.variant{display:inline-flex;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:3px;gap:3px}
+.vopt{display:grid;gap:1px;padding:6px 12px;border-radius:4px;text-decoration:none;color:var(--ink-2);line-height:1.25}
+.vopt b{font-weight:600;font-size:14px;color:var(--ink)}
+.vopt small{font-size:12px;color:var(--ink-3)}
+a.vopt:hover{background:var(--bg)}
+.vopt[aria-current="true"]{background:var(--ink)}
+.vopt[aria-current="true"] b{color:var(--bg)} .vopt[aria-current="true"] small{color:var(--line)}
+.dls{display:flex;flex-wrap:wrap;gap:8px}
+.dl{display:grid;gap:1px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);text-decoration:none;color:var(--ink)}
+.dl b{font-weight:600;font-size:14px} .dl small{font-size:12px;color:var(--ink-3)}
+.dl.cur{border-color:var(--ink-2)}
+.dl:hover{border-color:var(--ink)}

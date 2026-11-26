@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Порядок сборки вертепного ящика по шагам, с 3D-моделью.">
+<title>Сборка — Вертепный ящик</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<nav class="top"><div class="wrap">
+  <a class="brand" href="index.html">Вертепный ящик</a>
+  <a class="l" href="index.html">Обзор</a>
+  <a class="l" href="parts.html">Детали</a>
+  <a class="l" href="assembly.html" aria-current="page">Сборка</a>
+</div></nav>
+<div class="wrap">
+<header class="page" id="head">
+  <div class="eyebrow">Порядок сборки</div>
+  <div class="titlebar"><h1>Сборка</h1><div id="variant"></div></div>
+  <p class="lede">Сначала все детали выпиливают по их чертежам на странице «Детали». Здесь — как их собрать. Выбери шаг: в модели подсветятся детали этого шага поверх всего, что собрано раньше, а ниже появятся действия по порядку и схема, куда что ставить. Корпус собираем на саморезах и клею. Сначала собираем весь корпус с фасадом и створками, сцены — полы и задники — ставим в самом конце и без клея: их можно вынуть и переделать, когда станет ясна драматургия.</p>
+</header>
+<section>
+  <div class="asm">
+    <ol class="steps" id="steps"></ol>
+    <div class="asm-r">
+      <div class="viewer" id="viewer">
+        <div class="vbar"><button type="button" id="prev">← назад</button><button type="button" id="next">дальше →</button></div>
+      </div>
+      <div id="detail" class="card"></div>
+    </div>
+  </div>
+</section>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/draw.js"></script>
+<script src="assets/viewer.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function () {
+'use strict';
+const {$} = SITE, {esc} = V, S = V.STEPS;
+SITE.variant($('#variant')); SITE.banner($('#head'));
+const types = V.partTypes(V.model(180)), names = new Map(types.flatMap(t => [[t.id, t.name]].concat((t.aliases || []).map(a => [a, t.name]))));
+$('#steps').innerHTML = S.map((s, i) => `<li id="step-${i + 1}"><button type="button" data-i="${i}"><span class="stt">${esc(s.t)}</span>
+  <span class="std"><span>${esc(s.text)}</span></span></button></li>`).join('');
+const CAP = 'Размеры в сантиметрах, координаты от базового угла (кружок). Пунктир — то, что под деталью или прилегает к ней. Сплошной тонкий контур с заливкой — то, что стоит на детали сверху.';
+function detail(i) {
+  const s = S[i];
+  $('#detail').innerHTML = `<div class="eyebrow">Шаг ${i + 1} из ${S.length}</div><h3>${esc(s.t)}</h3>
+    <ol class="plain">${(s.do || []).map(d => `<li>${esc(d)}</li>`).join('')}</ol>
+    ${s.types.length ? `<p class="muted">Детали шага: ${s.types.map(t => `<a href="part.html?id=${encodeURIComponent(t)}">${esc(names.get(t) || t)}</a>`).join(', ')}</p>` : ''}
+    ${(s.sheets || []).map((t, k) => `<figure class="sheet"><div class="sheet-head"><div class="t"><span class="no">С${i + 1}${s.sheets.length > 1 ? '.' + (k + 1) : ''}</span><h3>Куда ставится: ${esc(names.get(t) || t)}</h3></div></div>
+      <div class="sheet-body"><svg class="dw" id="asm-${k}" role="img" aria-label="Схема сборки"></svg></div></figure>`).join('')}
+    ${(s.sheets || []).length ? `<p class="muted">${CAP}</p>` : ''}`;
+  (s.sheets || []).forEach((t, k) => VD.asmSheet($('#asm-' + k), t));
+}
+const view = VV.create($('#viewer'), {mode:'steps'});
+let cur = 0;
+function go(i) {
+  cur = Math.max(0, Math.min(S.length - 1, i));
+  document.querySelectorAll('#steps button').forEach((b, k) => { if (k === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  if (view) {
+    const vis = new Set(), all = view.M.parts.map(p => p.id);
+    const addId = id => id.endsWith('*') ? all.filter(x => x.startsWith(id.slice(0, -1))).forEach(x => vis.add(x)) : vis.add(id);
+    S.slice(0, cur + 1).forEach(s => s.ids.forEach(addId));
+    if (cur === S.length - 1) vis.add('puppets');
+    view.st.visible = vis; const hl = new Set(); S[cur].ids.forEach(id => id.endsWith('*') ? all.filter(x => x.startsWith(id.slice(0, -1))).forEach(x => hl.add(x)) : hl.add(id)); view.st.hl = hl; view.apply();
+  }
+  detail(cur);
+  if (history.replaceState) history.replaceState(null, '', '#step-' + (cur + 1));
+}
+document.querySelectorAll('#steps button').forEach(b => b.addEventListener('click', () => go(+b.dataset.i)));
+$('#prev').addEventListener('click', () => go(cur - 1));
+$('#next').addEventListener('click', () => go(cur + 1));
+const fromHash = () => { const m = /^#step-(\d+)$/.exec(location.hash); return m ? +m[1] - 1 : 0; };
+go(fromHash());
+window.addEventListener('hashchange', () => { const i = fromHash(); if (i !== cur) go(i); });
+})();
+</script>
+</body>
+</html>

@@ -20,13 +20,17 @@
 <div class="wrap">
 <header class="page" id="head">
   <div class="eyebrow">Детали и раскрой</div>
-  <h1>Детали</h1>
-  <p class="lede">Здесь только заготовки: каждая карточка открывает чертёж детали — что выпилить и что просверлить. Куда что ставится — на странице «Сборка», по шагам. Одинаковые детали собраны в одну карточку.</p>
+  <div class="titlebar"><h1>Детали</h1><div id="variant"></div></div>
+  <p class="lede">Здесь только заготовки: каждая карточка открывает чертёж детали — что вырезать. Всё фанерное режется на ЧПУ по файлам из архива ниже. Куда что ставится — на странице «Сборка», по шагам. Одинаковые детали собраны в одну карточку.</p>
   <div class="stats" id="stats"></div>
 </header>
 <div id="groups"></div>
 <section>
-  <div class="sec-head"><h2>Раскрой</h2><p>Фанерные листы считаем по 122 × 244 см с запасом 25% на пропилы и брак, бруски — хлыстами по 2 м.</p></div>
+  <div class="sec-head"><h2>Файлы</h2><p>Контуры всех фанерных заготовок для станка (DXF и SVG, 1:1 в миллиметрах), 3D-модель и листы чертежей. Архивы собраны по размерам v0.1.</p></div>
+  <div class="dls" id="dls"></div>
+</section>
+<section>
+  <div class="sec-head"><h2>Раскрой</h2><p>Фанерные листы считаем по 122 × 244 см с запасом 25% на пропилы и брак.</p></div>
   <div class="card"><div class="tbl-wrap"><table id="cut"><thead><tr><th>Деталь</th><th class="n">шт</th><th class="n">Размер, см</th><th>Материал</th></tr></thead><tbody></tbody></table></div></div>
   <div class="two">
     <div class="card"><h3>Материалы</h3><div class="tbl-wrap"><table id="mats"><thead><tr><th>Материал</th><th class="n">Всего</th><th class="n">Купить</th><th class="n">Вес</th></tr></thead><tbody></tbody></table></div></div>
@@ -41,7 +45,7 @@
 (function () {
 'use strict';
 const {$} = SITE, {fmt, esc, MAT} = V;
-SITE.banner($('#head'));
+SITE.variant($('#variant')); SITE.banner($('#head'));
 const M = V.model(180), types = V.partTypes(M), cd = V.cutData(M), byId = new Map(types.flatMap(t => [[t.id, t]].concat((t.aliases || []).map(a => [a, t]))));
 $('#stats').innerHTML = [[String(cd.count), 'деталей из дерева'], [String(cd.types.length), 'разных'], [`${Math.round(cd.kg)} кг`, 'корпус с фронтоном']]
   .map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
@@ -51,13 +55,14 @@ $('#groups').innerHTML = V.GROUPS.map(([g, ids, note, tag]) => `<section><div cl
     <div class="meta"><span class="nm">${esc(t.name)}</span><span class="sz">${esc(t.size)}</span><span class="q">${t.qty} шт${t.mat ? ' · ' + esc(MAT[t.mat].l) : ''}${t.note ? ' · ' + esc(t.note) : ''}</span></div></a>`;
 }).join('')}</div></section>`).join('');
 types.forEach(t => VD.part($('#th-' + t.id), t.id, true));
-const order = ['ply9', 'ply6', 'bar23', 'bar22', 'fabric'];
+const order = ['ply10', 'ply9', 'ply6', 'bar22'];
 $('#cut tbody').innerHTML = cd.types.slice().sort((a, b) => order.indexOf(a.mat) - order.indexOf(b.mat))
   .map(t => `<tr><td><a href="part.html?id=${encodeURIComponent(t.id)}">${esc(t.name)}</a></td><td class="n">${t.qty}</td><td class="n">${esc(t.size)}</td><td>${esc(MAT[t.mat].l)}</td></tr>`).join('');
 const sheet = 1.22*2.44;
 $('#mats tbody').innerHTML = order.filter(m => cd.tot[m] && MAT[m].kg || cd.tot[m] && MAT[m].kgm).map(m => { const t = cd.tot[m];
-  if (MAT[m].kg) { const n = Math.max(.5, Math.ceil(t.area*1.25/sheet*2)/2); return `<tr><td>${MAT[m].l}</td><td class="n">${fmt(t.area)} м²</td><td class="n">${String(n).replace('.', ',')} листа</td><td class="n">${fmt(t.area*MAT[m].kg)} кг</td></tr>`; }
+  if (MAT[m].kg) { const n = Math.max(.5, Math.ceil(t.area*1.25/sheet*2)/2); return `<tr><td>${MAT[m].l}</td><td class="n">${fmt(t.area)} м²</td><td class="n">${String(n).replace('.', ',')} ${n === 1 ? 'лист' : 'листа'}</td><td class="n">${fmt(t.area*MAT[m].kg)} кг</td></tr>`; }
   return `<tr><td>${MAT[m].l}</td><td class="n">${fmt(t.len)} м</td><td class="n">${Math.ceil(t.len*1.2/2)} × 2 м</td><td class="n">${fmt(t.len*MAT[m].kgm)} кг</td></tr>`; }).join('');
+SITE.downloads($('#dls'));
 $('#hw').innerHTML = V.hardware(M).map(t => `<li>${esc(t)}</li>`).join('');
 })();
 </script>

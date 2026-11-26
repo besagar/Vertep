@@ -20,7 +20,7 @@
 <div class="wrap">
 <header class="page" id="head">
   <div class="crumbs"><a href="parts.html">Детали</a> / <span id="crumb"></span></div>
-  <h1 id="title">Деталь</h1>
+  <div class="titlebar"><h1 id="title">Деталь</h1><div id="variant"></div></div>
   <p class="lede" id="where"></p>
   <div class="facts" id="facts"></div>
   <p class="stage-note" id="stage" hidden></p>
@@ -29,7 +29,7 @@
   <figure class="sheet">
     <div class="sheet-head"><div class="t"><span class="no" id="sheetNo"></span><h3 id="view"></h3></div></div>
     <div class="sheet-body"><svg class="dw" id="sv-part" role="img" aria-label="Чертёж детали"></svg></div>
-    <figcaption id="cap">Размеры в сантиметрах. Координаты отсчитываются от базового угла (кружок): по горизонтали — подписи под деталью, по вертикали — слева. Здесь только заготовка: что выпилить и просверлить. Пунктир — отверстия, которые не сквозные. Куда деталь ставится и что к ней крепится — на схеме в шаге сборки.</figcaption>
+    <figcaption id="cap">Размеры в сантиметрах. Координаты отсчитываются от базового угла (кружок): по горизонтали — подписи под деталью, по вертикали — слева. Здесь только заготовка: что вырезать. Чёрное — насквозь; заливка потемнее с пунктирным краем — канавка на часть толщины. Куда деталь ставится и что к ней крепится — на схеме в шаге сборки.</figcaption>
   </figure>
   <div id="tables" class="two"></div>
 </section>
@@ -52,8 +52,8 @@
 const {$} = SITE, {fmt, esc, MAT, ORDER} = V;
 const M = V.model(180), types = V.partTypes(M), byId = new Map(types.flatMap(t => [[t.id, t]].concat((t.aliases || []).map(a => [a, t]))));
 let id = new URLSearchParams(location.search).get('id');
-const OLD = {bottom:'panel', ceiling:'panel', top:'panel', 'throne-base':'hatch-half', 'hatch-lid':'hatch-half'};   // старые адреса карточек
-if (OLD[id]) id = OLD[id];
+const OLD = {bottom:'panel', ceiling:'panel', 'throne-base':'hatch-half', 'hatch-lid':'hatch-half', cleat:'side', rib:'panel', 'gable-bar':'gable-front'};   // старые адреса и детали брусковой версии
+if (!byId.has(id) && OLD[id]) id = OLD[id];
 if (!byId.has(id)) id = ORDER[0];
 const t = byId.get(id), idx = types.indexOf(t), own = [t.id].concat(t.aliases || []);
 id = t.id;
@@ -67,11 +67,12 @@ const tier = V.STAGE.has(id) ? ['сцена: можно менять', V.STAGE_N
 if (tier) facts.push(tier[0]);
 $('#facts').innerHTML = facts.map(f => `<span class="chip">${esc(f)}</span>`).join('');
 if (tier) { $('#stage').textContent = tier[1]; $('#stage').hidden = false; }
-SITE.banner($('#head'));
+SITE.variant($('#variant')); SITE.banner($('#head'));
 const res = VD.part($('#sv-part'), id, false);
 $('#tables').innerHTML = (res.tables || []).map(SITE.tableHTML).join('');
 $('#make').innerHTML = t.make.map(s => `<li>${esc(s)}</li>`).join('');
 const si = V.STEPS.findIndex(s => s.types.some(x => own.includes(x)));
+$('#stepLink').insertAdjacentHTML('beforebegin', `<p class="muted">Файлы для станка — в <a href="parts.html#dls">архиве на странице «Детали»</a>.</p>`);
 if (si >= 0) $('#stepLink').innerHTML = `Куда ставится: <a href="assembly.html#step-${si + 1}">шаг ${si + 1} сборки — ${esc(V.STEPS[si].t)}</a>`;
 const ids = t.parts.map(p => p.id);
 const view = VV.create($('#viewer'), {mode:'part', highlight: id === 'puppet' ? ['__none'] : ids});
