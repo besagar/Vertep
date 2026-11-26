@@ -117,6 +117,7 @@ figcaption{padding:8px 12px 12px;font-size:13px;color:var(--ink-2);border-top:1p
 .dw .onfloor{fill:var(--panel);fill-opacity:.6;stroke:var(--ink-2);stroke-width:.9}
 .dw .onfloor.c-back-warm{fill:var(--d-warm);fill-opacity:1} .dw .onfloor.c-back-cold{fill:var(--d-cold);fill-opacity:1}
 .dw .void{fill:var(--void);stroke:none}
+.dw .cut-l{fill:none;stroke:var(--ink-2);stroke-width:.8;stroke-dasharray:8 3 2 3;vector-effect:non-scaling-stroke}
 .dw .pocket{fill:var(--d-bar);stroke:var(--ink-2);stroke-width:.8;stroke-dasharray:4 2;vector-effect:non-scaling-stroke}
 .dw .slot{stroke:var(--void);fill:none;stroke-linecap:round;stroke-linejoin:round}
 .dw .slot-cl{stroke:var(--d-screen);fill:none;stroke-width:.8;stroke-dasharray:6 2 1 2;vector-effect:non-scaling-stroke}

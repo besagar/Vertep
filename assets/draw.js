@@ -26,7 +26,7 @@ function spread(v, g) {
   const p = []; blocks.forEach(b => { const s = start(b); for (let j = 0; j < b.n; j++) p.push(s + j*g); }); return p;
 }
 /* классы оформления: всё остальное считается геометрией листа */
-const ANNO = /(^|\s)(dim|ext|ext2|tick|tick-o|ord|jog|leader|dot|lvl|lvl-l|zone-c|datum|cl-pt|slot-cl|ghost)(\s|$)/;
+const ANNO = /(^|\s)(dim|ext|ext2|tick|tick-o|ord|jog|leader|dot|lvl|lvl-l|zone-c|datum|cl-pt|slot-cl|ghost|cut-l)(\s|$)/;
 
 class Sheet {
   constructor(fs) { this.fs = fs; this.L = {g:[], d:[], t:[]}; this.bb = [1e9,1e9,-1e9,-1e9]; this.tb = []; this.rec = []; this.dims = []; }
@@ -56,7 +56,7 @@ class Sheet {
     const w = String(label).length * f * .6;
     if (w + f*.8 <= x2 - x1) this.text((x1+x2)/2, y + f*.3, label, {anchor:'middle', cls:'dt ' + (o.cls || '')});
     else { this.line(x2, y, x2 + f*.5, y, 'dim'); this.text(x2 + f*.7, y - f*.3, label, {cls:'dt ' + (o.cls || '')}); }
-    this.dims.push({k:'h', a:[x1, fr[0]], b:[x2, fr[1]], v:x2 - x1, label});
+    this.dims.push({k:'h', a:[x1, fr[0]], b:[x2, fr[1]], v:(x2 - x1)/(o.scale || 1), s:o.scale || 1, label});
   }
   /* размер по вертикали: from — абсцисса точек на детали (одна или [нижняя, верхняя]) */
   dimV(y1, y2, x, label, o) {
@@ -64,7 +64,7 @@ class Sheet {
     const fr = o.from == null ? [null, null] : Array.isArray(o.from) ? o.from : [o.from, o.from];
     [[y1, fr[0]], [y2, fr[1]]].forEach(([y, a]) => { if (a == null) return; const s = x > a ? 1 : -1; this.line(a + s*f*.25, y, x + s*f*.45, y, 'ext'); });
     this.line(x, y1, x, y2, 'dim'); this.tick(x, y1); this.tick(x, y2);
-    this.dims.push({k:'v', a:[fr[0], y1], b:[fr[1], y2], v:y2 - y1, label});
+    this.dims.push({k:'v', a:[fr[0], y1], b:[fr[1], y2], v:(y2 - y1)/(o.scale || 1), s:o.scale || 1, label});
     const w = String(label).length * f * .6, tx = o.side === 'right' ? x + f*1.05 : x - f*.3;
     if (o.horiz) { this.text(o.side === 'right' ? x + f*.45 : x - f*.45, (y1+y2)/2 - f*.3, label, {anchor:o.side === 'right' ? 'start' : 'end', cls:'dt ' + (o.cls || '')}); return; }
     if (w + f*.8 <= y2 - y1) this.text(tx, (y1+y2)/2, label, {anchor:'middle', rot:true, cls:'dt ' + (o.cls || '')});
@@ -391,6 +391,7 @@ function buildPart(type, thumb, mode) {
   const E = ext(outline);
   S.dimH(0, w, Math.min(ymin, 0) - f*1.8, fmt(w), {from:[E.minU[1], E.maxU[1]]});
   S.dimV(0, h, Math.min(xmin, 0) - f*1.8, fmt(h), {from:[E.minV[0], E.maxV[0]]});
+  const xc = asm ? w + f*3 : cutSection(S, ctx, Math.min(ymin, 0) - f*1.8);
   // выноски: соседи по названию, вырезы по виду, элементы по виду, особые пометки
   const items = [], groups = new Map();
   nbs.forEach(n => { const k = n.q.name + (n.front ? '' : ' (пунктир)'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(n); });
@@ -404,8 +405,59 @@ function buildPart(type, thumb, mode) {
   fg.forEach(g => { const ft = g[g.length - 1]; items.push({x:ft.c[0], y:ft.c[1], text:ft.n + (g.length > 1 ? ', ' + g.length + ' шт' : '') + (ft.front ? '' : ' (пунктир)')}); });
   featPolys.forEach(pl => { const c = centroid(pl); items.push({x:c[0], y:c[1], text:(p.feats.find(ft => ft.kind === 'bore') || {}).n + ' (пунктир)'}); });
   if (sp.notes && !asm) sp.notes(ctx).forEach(n => items.push(n));
-  S.callouts(items, w + f*3);
+  S.callouts(items, xc);
   return {S, res:{tables:!asm && sp.tables ? sp.tables(ctx) : []}};
+}
+/* Разрез А–А через середину заготовки: высокая деталь режется вертикально (разрез справа от вида),
+   широкая — горизонтально (разрез под видом). Профиль считается из того же контура, что идёт в файлы для станка:
+   пересечения линии разреза с контуром, дырами и канавками. Если на линии есть канавка — узел Б в масштабе 10:1.
+   Возвращает, где ставить колонку выносок. */
+function cutSection(S, c, yBottom) {
+  const f = S.fs, p = c.p, w = c.w, h = c.h, BS = V.boardShape(p), t = BS.t, sh = q => c.fc(q);
+  const outer = BS.outer.map(sh), holes = BS.holes.map(x => x.map(sh)), circles = BS.circles.map(k => ({c:sh(k.c), r:k.r})), pockets = BS.pockets.map(k => ({pts:k.pts.map(sh), depth:k.depth, at:k.at}));
+  const vert = h >= w, A = vert ? 0 : 1, Bx = 1 - A, all = [outer].concat(holes, pockets.map(k => k.pts));
+  let cc = vert ? w/2 : h*.42;   // широкая деталь — не по середине, чтобы линия не легла на выноски while (all.some(pl => pl.some(q => Math.abs(q[A] - cc) < .03))) cc += .07;
+  const xs = [];
+  all.forEach(pl => pl.forEach((q, i) => { const r = pl[(i + 1) % pl.length]; if ((q[A] - cc)*(r[A] - cc) < 0) xs.push(q[Bx] + (r[Bx] - q[Bx])*(cc - q[A])/(r[A] - q[A])); }));
+  circles.forEach(k => { const dd = cc - k.c[A]; if (Math.abs(dd) < k.r) { const s = Math.sqrt(k.r*k.r - dd*dd); xs.push(k.c[Bx] - s, k.c[Bx] + s); } });
+  xs.sort((a, b) => a - b);
+  const at = s => vert ? [cc, s] : [s, cc], runs = [];
+  for (let i = 0; i + 1 < xs.length; i++) {
+    const a = xs[i], b = xs[i + 1]; if (b - a < 1e-6) continue; const q = at((a + b)/2);
+    if (!inPoly(q, outer) || holes.some(x => inPoly(q, x)) || circles.some(k => Math.hypot(q[0] - k.c[0], q[1] - k.c[1]) < k.r)) continue;
+    let d0 = 0, d1 = t; pockets.forEach(k => { if (inPoly(q, k.pts)) { if (k.at === 'max') d1 = t - k.depth; else d0 = k.depth; } });
+    const last = runs[runs.length - 1], part = {a, b, d0, d1};
+    if (last && Math.abs(last.b - a) < 1e-6) { last.parts.push(part); last.b = b; } else runs.push({a, b, parts:[part]});
+  }
+  const runPoly = (r, lo, hi, map) => { const ps = r.parts.map(x => ({a:Math.max(lo, x.a), b:Math.min(hi, x.b), d0:x.d0, d1:x.d1})).filter(x => x.b > x.a + 1e-9); if (!ps.length) return null;
+    const o = []; ps.forEach(x => o.push(map(x.a, x.d0), map(x.b, x.d0))); ps.slice().reverse().forEach(x => o.push(map(x.b, x.d1), map(x.a, x.d1)));
+    return o.filter((q, i) => { const r2 = o[(i + 1) % o.length]; return Math.hypot(q[0] - r2[0], q[1] - r2[1]) > 1e-9; }); };
+  const cls = 'geo face c-' + p.cat, full = runs.flatMap(r => r.parts).filter(x => x.d0 === 0 && x.d1 === t).pop();
+  // линия разреза на виде
+  if (vert) { S.line(cc, -f*.6, cc, h + f*.6, 'cut-l', 'g'); S.text(cc, h + f*1, 'А', {anchor:'middle', cls:'zone'}); }
+  else { S.line(-f*.6, cc, w + f*.6, cc, 'cut-l', 'g'); S.text(w + f*.5, cc - f*1.3, 'А', {cls:'zone'}); }
+  let X0, map;
+  if (vert) { X0 = w + f*2.6; map = (s, d) => [X0 + d, s]; }
+  else { X0 = yBottom - f*3.2; map = (s, d) => [s, X0 - d]; }
+  runs.forEach(r => { const pl = runPoly(r, -Infinity, Infinity, map); if (pl) S.poly(pl, cls); });
+  if (full) { if (vert) S.dimH(X0, X0 + t, full.b + f*1.4, fmt(t), {from:[full.b, full.b]}); else S.dimV(X0 - t, X0, -f*1.4, fmt(t), {from:[runs[0].a, runs[0].a]}); }
+  if (vert) S.text(X0 + t/2, h + f*3.4, 'А–А', {anchor:'middle', cls:'zone'}); else S.text(0, X0 + f*.7, 'А–А', {cls:'zone'});
+  // узел канавки
+  const pk = runs.flatMap(r => r.parts).find(x => x.d0 > 0 || x.d1 < t);
+  if (pk) {
+    const k = 10, m = Math.max(1.5, (pk.b - pk.a)*1.2), lo = pk.a - m, hi = pk.b + m, pd = pk.d0 > 0 ? pk.d0 : t - pk.d1;
+    const cy = (pk.a + pk.b)/2, cx = t/2, rr = (hi - lo)/2;
+    if (vert) { S.circ(X0 + cx, cy, rr, 'cut-l', 'g'); S.text(X0 + cx + rr + f*.3, cy + rr*.6, 'Б', {cls:'zone'}); }
+    else { S.circ(cy, X0 - cx, rr, 'cut-l', 'g'); S.text(cy + rr + f*.3, X0 - cx + rr*.6, 'Б', {cls:'zone'}); }
+    const Yt = (vert ? yBottom : X0 - t) - f*3.5, mapD = (s, d) => [d*k, Yt - (hi - s)*k];
+    runs.forEach(r => { const pl = runPoly(r, lo, hi, mapD); if (pl) S.poly(pl, cls); });
+    const g0 = mapD(pk.a, pk.d0 > 0 ? 0 : pk.d1), g1 = mapD(pk.b, pk.d0 > 0 ? 0 : pk.d1), dIn = pk.d0 > 0 ? pk.d0 : pk.d1, dOut = pk.d0 > 0 ? 0 : t;
+    S.dimV(g0[1], g1[1], t*k + f*1.4, fmt(pk.b - pk.a), {from:[t*k, t*k].map((v, i) => v), side:'right', scale:k});
+    S.dimH(dIn*k, dOut*k, mapD(hi, 0)[1] + f*1.2, fmt(pd), {from:[mapD(pk.b, dIn)[1], mapD(pk.b, dOut)[1]], scale:k});
+    S.dimH(0, t*k, mapD(lo, 0)[1] - f*1.4, fmt(t), {from:[mapD(lo, 0)[1], mapD(lo, t)[1]], scale:k});
+    S.text(t*k + f*4.5, Yt - (hi - lo)*k/2, 'Б (10:1): канавка ' + fmt(pd*10) + ' мм', {cls:'zone'});
+  }
+  return vert ? X0 + t + f*3 : w + f*3;
 }
 /* кукла: габарит, который должна соблюдать любая кукла (по нему же идёт проверка щелей) */
 function puppetSheet(thumb) {
@@ -457,7 +509,7 @@ function verify(S, name) {
     out.dims++;
     const pts = d.k === 'h' || d.k === 'v' ? [d.a, d.b] : [d.a];
     pts.forEach(q => { if (!q || q[0] == null || q[1] == null) bad(d, 'размер не привязан к точке детали'); else if (!on(q)) bad(d, `точка (${fmt(q[0])}; ${fmt(q[1])}) не лежит на нарисованной геометрии`); });
-    const meas = d.k === 'h' ? Math.abs(d.b[0] - d.a[0]) : d.k === 'v' ? Math.abs(d.b[1] - d.a[1]) : d.k === 'ox' ? d.a[0] : d.a[1];
+    const meas = (d.k === 'h' ? Math.abs(d.b[0] - d.a[0]) : d.k === 'v' ? Math.abs(d.b[1] - d.a[1]) : d.k === 'ox' ? d.a[0] : d.a[1])/(d.s || 1);
     if (Math.abs(meas - Math.abs(d.v)) > .01) bad(d, `подписано ${fmt(d.v)}, а по точкам ${fmt(meas)}`);
     const want = (d.k === 'lvl' ? '+' : '') + fmt(Math.abs(d.v));
     if (!String(d.label).includes(want)) bad(d, `в подписи нет числа ${want}`);
